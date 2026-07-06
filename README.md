@@ -29,6 +29,7 @@ A production-grade, full-stack RAG (Retrieval-Augmented Generation) assistant th
 - **DOCX Parsing:** Intelligently groups Word paragraphs into ~3000-character synthetic pages so they can be chunked identically to PDFs.
 - **Smart Chunking:** Documents are split using a semantic Markdown text splitter to preserve context boundaries.
 - **Smart Inline Citations:** The LLM cites sources inline (e.g. `[1]`, `[2]`). If multiple relevant paragraphs are retrieved from the same page, the backend automatically groups them into a single citation, so the source panel displays all relevant paragraphs for that page together without showing the entire unrelated page text.
+- **Dynamic Suggested Questions:** When you upload documents, the backend reads a snippet of the content and uses the LLM to generate exactly 4 context-aware, dynamic suggested questions that are highly relevant to your specific files, replacing the generic starter prompts.
 - **Real-time Streaming:** Uses SSE to stream LLM tokens as they are generated, along with a "thinking" state.
 - **Fully Responsive:** Mobile-first design with a slide-in drawer on mobile and a collapsible sidebar on desktop.
 
@@ -37,7 +38,7 @@ A production-grade, full-stack RAG (Retrieval-Augmented Generation) assistant th
 1. **Extraction:**
    - **PDF (Text):** Extracted page-by-page using `pdfplumber`.
    - **PDF (Image/Scanned):** Rendered to PNG at 2x scale via `pypdfium2`, then passed to Gemini Vision for OCR.
-   - **DOCX:** Extracted via `python-docx`, grouping paragraphs into 3000-character synthetic "pages".
+   - **DOCX:** Extracted via `python-docx`, grouping paragraphs into 3000-character synthetic "pages". If the DOCX contains no text (image-only), it automatically unzips the document, extracts embedded media, and runs them through Gemini Vision OCR.
    - **TXT:** Treated as a single page.
 
 2. **Chunking:**
@@ -76,6 +77,10 @@ uvicorn app.main:app --reload --port 8000
 ```bash
 cd frontend
 npm install
+
+# Copy the env example file
+cp .env.example .env.local
+
 npm run dev
 ```
 

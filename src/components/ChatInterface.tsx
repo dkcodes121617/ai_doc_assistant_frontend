@@ -197,6 +197,9 @@ export function ChatInterface({ documents }: { documents: DocumentSession[] }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeCitations, setActiveCitations] = useState<Citation[]>([]);
   const [highlightedIdx, setHighlightedIdx] = useState<number | null>(null);
+  
+  const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([...PROMPTS]);
+  const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -207,6 +210,35 @@ export function ChatInterface({ documents }: { documents: DocumentSession[] }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
+
+  // Fetch dynamic suggestions
+  useEffect(() => {
+    if (documents.length > 0 && messages.length === 0) {
+      const fetchSuggestions = async () => {
+        setIsSuggestionsLoading(true);
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          const res = await fetch(`${apiUrl}/chat/suggestions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ document_ids: documents.map(d => d.documentId) })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.questions && data.questions.length > 0) {
+              setSuggestedPrompts(data.questions);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch suggestions");
+        }
+        setIsSuggestionsLoading(false);
+      };
+      fetchSuggestions();
+    } else if (documents.length === 0) {
+      setSuggestedPrompts([...PROMPTS]);
+    }
+  }, [documents, messages.length]);
 
   const onCitationClick = useCallback((citations: Citation[], index: number) => {
     setActiveCitations(citations);
@@ -406,7 +438,11 @@ export function ChatInterface({ documents }: { documents: DocumentSession[] }) {
                     </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
-                    {PROMPTS.map((p) => (
+                    {isSuggestionsLoading ? (
+                      [1, 2, 3, 4].map(i => (
+                        <div key={i} className="h-[42px] rounded-xl bg-slate-100 animate-pulse border border-slate-200/60" />
+                      ))
+                    ) : suggestedPrompts.map((p) => (
                       <button
                         key={p}
                         onClick={() => sendMessage(p)}

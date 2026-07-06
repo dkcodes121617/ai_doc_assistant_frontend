@@ -32,20 +32,23 @@ const CitationCard = memo(function CitationCard({
   cardRef: (el: HTMLDivElement | null) => void;
   onClick: () => void;
 }) {
-  // Truncate snippet to first 220 chars for display
-  const snippet = (cit.relevant_excerpt || cit.snippet_text)?.trim() || "";
-  const preview = snippet.length > 240 ? snippet.slice(0, 240) + "…" : snippet;
+  // Expand to show full text if highlighted, otherwise truncate
+  const rawSnippet = (cit.relevant_excerpt || cit.snippet_text)?.trim() || "";
+  const isExpanded = isHighlighted;
+
+  const displaySnippet = (!isExpanded && rawSnippet.length > 240)
+    ? rawSnippet.slice(0, 240) + "…"
+    : rawSnippet;
 
   return (
     <motion.div
       ref={cardRef}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative flex flex-col rounded-xl border cursor-pointer select-none overflow-hidden transition-all duration-200 ${
-        isHighlighted
-          ? "bg-blue-50 border-blue-200 shadow-md shadow-blue-100/50"
-          : "bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm"
-      }`}
+      className={`relative flex flex-col rounded-xl border cursor-pointer select-none overflow-hidden transition-all duration-200 ${isHighlighted
+        ? "bg-blue-50 border-blue-200 shadow-md shadow-blue-100/50"
+        : "bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm"
+        }`}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -66,27 +69,24 @@ const CitationCard = memo(function CitationCard({
       </AnimatePresence>
 
       {/* Header row: index + page number */}
-      <div className={`flex items-center justify-between px-3.5 pt-3 pb-2 border-b ${
-        isHighlighted ? "border-blue-100" : "border-slate-50"
-      }`}>
+      <div className={`flex items-center justify-between px-3.5 pt-3 pb-2 border-b ${isHighlighted ? "border-blue-100" : "border-slate-50"
+        }`}>
         <div className="flex items-center gap-2">
           {/* Citation number badge */}
           <div
-            className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-extrabold flex-shrink-0 ${
-              isHighlighted
-                ? "bg-blue-600 text-white"
-                : "bg-slate-100 text-slate-500"
-            }`}
+            className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-extrabold flex-shrink-0 ${isHighlighted
+              ? "bg-blue-600 text-white"
+              : "bg-slate-100 text-slate-500"
+              }`}
           >
             {cit.index}
           </div>
 
           {/* Page number */}
-          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${
-            isHighlighted
-              ? "bg-blue-100/60 border-blue-200 text-blue-700"
-              : "bg-slate-50 border-slate-200 text-slate-500"
-          }`}>
+          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${isHighlighted
+            ? "bg-blue-100/60 border-blue-200 text-blue-700"
+            : "bg-slate-50 border-slate-200 text-slate-500"
+            }`}>
             <BookOpen className="w-2.5 h-2.5 flex-shrink-0" />
             Page {cit.page_number}
           </div>
@@ -101,10 +101,9 @@ const CitationCard = memo(function CitationCard({
 
       {/* Snippet */}
       <div className="px-3.5 py-3">
-        <p className={`text-[12px] leading-[1.6] italic ${
-          isHighlighted ? "text-blue-900" : "text-slate-600"
-        }`}>
-          &ldquo;{preview}&rdquo;
+        <p className={`text-[12px] leading-[1.6] whitespace-pre-wrap ${isHighlighted ? "text-blue-900" : "text-slate-600 italic"
+          }`}>
+          {displaySnippet}
         </p>
       </div>
     </motion.div>
@@ -195,7 +194,7 @@ export const SourcesPanel = memo(function SourcesPanel({
                     cit={cit}
                     isHighlighted={highlightedIndex === cit.index}
                     cardRef={(el) => { itemRefs.current[cit.index] = el; }}
-                    onClick={() => {/* already highlighted on open */}}
+                    onClick={() => {/* already highlighted on open */ }}
                   />
                 </motion.div>
               ))}

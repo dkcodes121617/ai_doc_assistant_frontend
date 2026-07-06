@@ -32,6 +32,7 @@ export function UploadZone({ onUploadSuccess }: UploadZoneProps) {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<UploadResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [statusMessage, setStatusMessage] = useState("Initializing...");
 
   const validate = (file: File): boolean => {
     if (file.size > 10 * 1024 * 1024) {
@@ -51,29 +52,63 @@ export function UploadZone({ onUploadSuccess }: UploadZoneProps) {
     setState("uploading");
     setProgress(0);
     setErrorMsg("");
+    setStatusMessage("Uploading file...");
 
-    const iv = setInterval(() => setProgress((p) => Math.min(p + 7, 85)), 400);
     const fd = new FormData();
     fd.append("file", file);
 
     try {
       const url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const res = await fetch(`${url}/upload`, { method: "POST", body: fd });
-      clearInterval(iv);
-      setProgress(100);
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: "Upload failed" }));
         throw new Error(err.detail || "Upload failed");
       }
 
-      const data: UploadResponse = await res.json();
-      setResult(data);
-      setState("success");
-      toast.success(`"${data.filename}" indexed — ${data.num_chunks} chunks`);
-      setTimeout(() => onUploadSuccess(data), 1200);
+      if (!res.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6);
+            if (!dataStr.trim()) continue;
+            
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.type === "progress") {
+                setProgress(data.percent);
+                setStatusMessage(data.status);
+              } else if (data.type === "success") {
+                setProgress(100);
+                setResult(data.result);
+                setState("success");
+                toast.success(`"${data.result.filename}" indexed — ${data.result.num_chunks} chunks`);
+                setTimeout(() => onUploadSuccess(data.result), 1200);
+                return;
+              } else if (data.type === "error") {
+                throw new Error(data.message);
+              }
+            } catch (e) {
+              console.error("Failed to parse SSE line", dataStr);
+            }
+          }
+        }
+      }
     } catch (err: any) {
-      clearInterval(iv);
       setProgress(0);
       const msg = err.message || "Unexpected error";
       setErrorMsg(msg);
@@ -213,8 +248,8 @@ export function UploadZone({ onUploadSuccess }: UploadZoneProps) {
 
               <div className="text-center">
                 <p className="text-[13px] font-semibold text-zinc-800">Processing…</p>
-                <p className="text-[11px] text-zinc-400 mt-1">
-                  Extracting text &amp; generating embeddings
+                <p className="text-[11px] text-zinc-500 mt-1 max-w-[260px] min-h-[16px] leading-tight">
+                  {statusMessage}
                 </p>
               </div>
 
