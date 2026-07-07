@@ -334,6 +334,15 @@ export function ChatInterface({ documents }: { documents: DocumentSession[] }) {
                 }
                 return next;
               });
+            } else if (data.type === "error" && typeof data.message === "string") {
+              gotFirst = true; // prevent the "no response received" fallback below
+              setMessages((prev) => {
+                const next = [...prev];
+                if (idx >= 0 && idx < next.length) {
+                  next[idx] = { ...next[idx], isThinking: false, content: data.message, error: true };
+                }
+                return next;
+              });
             }
           } catch { /* skip malformed */ }
         }
